@@ -8,14 +8,14 @@ use std::path::{Path, PathBuf};
 ///
 /// # Arguments
 ///
-/// * `source` - a String that holds the source path. It will be converted to a PathBuf.
-/// * `destination` - a String that holds the destination path. It will be converted to a PathBuf.
+/// * `source` - the source path. It will be converted to a PathBuf.
+/// * `destination` - the destination path. It will be converted to a PathBuf.
 /// * `pattern` - a standard glob pattern (e.g. *.{txt,csv} or **/*) that will be used to choose the files to be copied.
 ///
 pub fn copy_dir_with_pattern(
-    source: String,
-    destination: String,
-    pattern: String,
+    source: &Path,
+    destination: &Path,
+    pattern: &str,
 ) -> Result<(), Error> {
     let source_path: PathBuf = PathBuf::from(&source).canonicalize().unwrap();
     let source_with_glob = source_path.join(pattern);
@@ -47,16 +47,12 @@ pub fn copy_dir_with_pattern(
 
 #[test]
 fn test_copy_dir_with_pattern() {
-    const SOURCE_PATH: &str = "test/my_files/";
-    const DESTINATION_PATH: &str = "target/dest_files/";
-    const PATTERN: &str = "*.{txt,csv,md}";
+    let source_path: &Path = Path::new("test/my_files/");
+    let destination_path: &Path = Path::new("target/dest_files/");
+    let pattern: &str = "*.{txt,csv,md}";
 
     // copy or test files
-    if let Err(e) = copy_dir_with_pattern(
-        String::from(SOURCE_PATH),
-        String::from(DESTINATION_PATH),
-        String::from(PATTERN),
-    ) {
+    if let Err(e) = copy_dir_with_pattern(source_path, destination_path, pattern) {
         eprintln!("Error copying files: {:?}", e);
     }
 
@@ -69,5 +65,5 @@ fn test_copy_dir_with_pattern() {
     );
 
     // clean up
-    fs::remove_dir_all(DESTINATION_PATH);
+    fs::remove_dir_all(destination_path);
 }
