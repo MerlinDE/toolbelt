@@ -140,3 +140,22 @@ pub fn compile_xib_to_nib(source: &Path, destination: &Path) {
         }
     }
 }
+
+/// Sign a package using codesign from Xcode
+///
+/// # Arguments
+///
+/// * `package` - Path to the package's root folder
+///
+/// Attention: No error handling in place yet.
+///
+pub fn codesign(package: &Path) {
+    let signer = Command::new("codesign")
+        .arg("--force")
+        .arg("--sign")
+        .arg("-")
+        .arg(package)
+        .output()
+        // .unwrap();
+        .map_err(|_| "Failed to sign package.".to_string());
+}
