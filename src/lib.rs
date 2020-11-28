@@ -1,14 +1,16 @@
+#![crate_name = "toolbelt"]
 extern crate globwalk;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
+use glob::glob_with;
+use glob::MatchOptions;
+use std::fmt::Display;
 use std::{
     fs,
     io::Error,
-    env,
     path::{Path, PathBuf},
-    process,
     process::Command,
-    process::Stdio,
 };
 
 /// Copy files from one directory to another. Use a glob pattern to select the files to be copied.
@@ -130,13 +132,13 @@ pub fn compile_xib_to_nib(source: &Path, destination: &Path) {
                 img.path().display(),
                 nib_path.display()
             );
-            let compile_xibs = Command::new("ibtool")
+            let _compile_xibs = Command::new("ibtool")
                 .arg("--compile")
                 .arg(nib_path)
                 .arg(img.path())
                 .output()
                 // .unwrap();
-            .map_err(|_| "Failed to run compile xibs.".to_string());
+                .map_err(|_| "Failed to run compile xibs.".to_string());
         }
     }
 }
@@ -150,7 +152,7 @@ pub fn compile_xib_to_nib(source: &Path, destination: &Path) {
 /// Attention: No error handling in place yet.
 ///
 pub fn codesign(package: &Path) {
-    let signer = Command::new("codesign")
+    let _signer = Command::new("codesign")
         .arg("--force")
         .arg("--sign")
         .arg("-")
@@ -158,4 +160,98 @@ pub fn codesign(package: &Path) {
         .output()
         // .unwrap();
         .map_err(|_| "Failed to sign package.".to_string());
+}
+
+/// Reads a SDK path from an environment variable and returns a PathBuf pointing to it.
+///
+/// # Arguments
+///
+/// * `sdk_name` – A string containing the name of the environment variable that shall contain the SDK path
+///
+/// # Example
+///
+/// ```
+/// use toolbelt::get_sdk_path;
+/// let sdk_path = get_sdk_path(env!("THE_SDK"));
+/// ```
+pub fn get_sdk_path(sdk_name: &str) -> PathBuf {
+    let sdk_path: PathBuf = sdk_name
+        .to_string()
+        .parse()
+        .expect(format!("{} env variable configuration error.", sdk_name).as_str());
+
+    if !sdk_path.exists() {
+        eprintln!(
+            "Please download & unpack the SDK into {}",
+            sdk_path.display()
+        );
+        std::process::exit(1);
+    }
+
+    sdk_path
+}
+
+pub enum IncludeDirFormat {
+    PLAIN,
+    CLANG,
+}
+
+/// Returns an expanded list of header directories based on a list of paths incl. glob patterns
+///
+/// # Arguments
+///
+/// * `sdk_header_dirs` –
+/// * `sdk_path` - Root SDK path. Header directories will relative to this one
+/// * `format` – Format of returned directories. One of
+///     * IncludeDirFormat::PLAIN for a plain list
+///     * IncludeDirFormat::CLANG for clang style format (starting with `-I`)
+///
+/// # Example
+///
+/// ```
+/// use toolbelt::{get_sdk_path, get_sdk_include_dirs, IncludeDirFormat};
+///
+/// let sdk_path = get_sdk_path(env!("THE_SDK")).to_str().unwrap();
+/// let include_dirs = [
+///     "headers/common/**"];
+/// get_sdk_include_dirs(include_dirs, sdk_path, IncludeDirFormat::CLANG);
+/// ```
+pub fn get_sdk_include_dirs<I>(
+    sdk_header_dirs: I,
+    sdk_path: &str,
+    format: IncludeDirFormat,
+) -> Vec<String>
+where
+    I: IntoIterator,
+    I::Item: Display,
+{
+    let options = MatchOptions {
+        case_sensitive: false,
+        require_literal_separator: false,
+        require_literal_leading_dot: false,
+    };
+
+    let mut incl_dirs = Vec::new();
+    let sdk = PathBuf::from(sdk_path);
+
+    for hdir in sdk_header_dirs.into_iter() {
+        for entry in glob_with(&format!("{}{}", sdk_path, hdir).to_string(), options)
+            .expect("Failed to read glob pattern")
+        {
+            match entry {
+                Ok(path) => {
+                    let ipath = sdk.join(path);
+                    match &format {
+                        IncludeDirFormat::CLANG => {
+                            incl_dirs.push(format!("-I{}", &ipath.display()))
+                        }
+                        IncludeDirFormat::PLAIN => incl_dirs.push(format!("{}", &ipath.display())),
+                    }
+                }
+                Err(e) => eprintln!("{:?}", e),
+            }
+        }
+    }
+
+    incl_dirs
 }
