@@ -5,6 +5,7 @@ extern crate log;
 
 use glob::glob_with;
 use glob::MatchOptions;
+use inflector::cases::titlecase::to_title_case;
 use std::fmt::Display;
 use std::{
     fs,
@@ -200,7 +201,7 @@ pub enum IncludeDirFormat {
 ///
 /// # Arguments
 ///
-/// * `sdk_header_dirs` –
+/// * `sdk_header_dirs` – List of glob patterns for directories to includem
 /// * `sdk_path` - Root SDK path. Header directories will relative to this one
 /// * `format` – Format of returned directories. One of
 ///     * IncludeDirFormat::PLAIN for a plain list
@@ -254,4 +255,19 @@ where
     }
 
     incl_dirs
+}
+
+/// Return the package name from Cargo.toml title case formatted
+/// optionally adding the version number
+///
+/// # Arguments
+///
+/// * `with_version` – Include version number information
+pub fn get_name_from_cargo(with_version: bool) -> String {
+    let mut name = to_title_case(env!("CARGO_PKG_NAME"));
+    if with_version {
+        name += " ";
+        name += &*String::from(env!("CARGO_PKG_VERSION"));
+    }
+    name
 }
