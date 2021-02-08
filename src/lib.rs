@@ -8,7 +8,6 @@ use glob::MatchOptions;
 use inflector::cases::titlecase::to_title_case;
 use std::fmt::Display;
 use std::{
-    fs,
     io::Error,
     path::{Path, PathBuf},
     process::Command,
@@ -57,6 +56,8 @@ pub fn copy_dir_with_pattern(
 
 #[test]
 fn test_copy_dir_with_pattern() {
+    use std::fs;
+
     let source_path: &Path = Path::new("test/my_files/");
     let destination_path: &Path = Path::new("target/dest_files/");
 
