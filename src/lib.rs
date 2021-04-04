@@ -13,6 +13,13 @@ use std::{
     process::Command,
 };
 
+pub fn version() -> u32 {
+    ((env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap() & 7) << 19)
+        | ((env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().unwrap() & 15) << 15)
+        | ((env!("CARGO_PKG_VERSION_PATCH").parse::<u32>().unwrap() & 15) << 11)
+        | ((env!("CARGO_PKG_VERSION_PRE").parse::<u32>().unwrap_or(0) & 511) << 0)
+}
+
 /// Copy files from one directory to another. Use a glob pattern to select the files to be copied.
 ///
 /// # Arguments
