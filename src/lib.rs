@@ -3,15 +3,16 @@ extern crate globwalk;
 #[macro_use]
 extern crate log;
 
-use glob::glob_with;
-use glob::MatchOptions;
-use inflector::cases::titlecase::to_title_case;
 use std::fmt::Display;
 use std::{
     io::Error,
     path::{Path, PathBuf},
     process::Command,
 };
+
+use glob::glob_with;
+use glob::MatchOptions;
+use inflector::cases::titlecase::to_title_case;
 
 pub fn version() -> u32 {
     ((env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap() & 7) << 19)
@@ -39,24 +40,28 @@ pub fn copy_dir_with_pattern(
 
     let mut existing_paths: Vec<PathBuf> = Vec::new();
 
-    for entry in globwalk::glob(format!("{}", source_with_glob.display())).unwrap() {
-        if let Ok(img) = entry {
-            let mut destination_sub_path =
-                img.path().strip_prefix(&source_path).unwrap().to_path_buf();
-            destination_sub_path.set_file_name("");
-            let complete_destination_path = destination_path.join(destination_sub_path);
+    for entry in globwalk::glob(format!("{}", source_with_glob.display()))
+        .unwrap()
+        .flatten()
+    {
+        let mut destination_sub_path = entry
+            .path()
+            .strip_prefix(&source_path)
+            .unwrap()
+            .to_path_buf();
+        destination_sub_path.set_file_name("");
+        let complete_destination_path = destination_path.join(destination_sub_path);
 
-            if !existing_paths.contains(&complete_destination_path) {
-                existing_paths.push(complete_destination_path.clone());
-                if !complete_destination_path.exists() {
-                    // make sure the destination path exists
-                    std::fs::create_dir_all(&complete_destination_path)?;
-                }
+        if !existing_paths.contains(&complete_destination_path) {
+            existing_paths.push(complete_destination_path.clone());
+            if !complete_destination_path.exists() {
+                // make sure the destination path exists
+                std::fs::create_dir_all(&complete_destination_path)?;
             }
-
-            let destination_file = complete_destination_path.join(&img.file_name());
-            std::fs::copy(img.path(), destination_file)?;
         }
+
+        let destination_file = complete_destination_path.join(&entry.file_name());
+        std::fs::copy(entry.path(), destination_file)?;
     }
     Ok(())
 }
@@ -128,27 +133,28 @@ pub fn compile_xib_to_nib(source: &Path, destination: &Path) {
     let source_with_glob = PathBuf::from(source).join("*.xib");
     debug!("source with glob {:?}", &source_with_glob);
 
-    for entry in globwalk::glob(source_with_glob.to_str().unwrap()).unwrap() {
-        if let Ok(img) = entry {
-            // TODO: preserve source directory structure at destination
-            let mut nib_path = PathBuf::from(destination);
-            nib_path = nib_path.join(img.file_name());
-            nib_path.set_extension("nib");
-            debug!("{:?}", &nib_path);
+    for entry in globwalk::glob(source_with_glob.to_str().unwrap())
+        .unwrap()
+        .flatten()
+    {
+        // TODO: preserve source directory structure at destination
+        let mut nib_path = PathBuf::from(destination);
+        nib_path = nib_path.join(entry.file_name());
+        nib_path.set_extension("nib");
+        debug!("{:?}", &nib_path);
 
-            debug!(
-                "Compile xib from {:?} to {:?}",
-                img.path().display(),
-                nib_path.display()
-            );
-            let _compile_xibs = Command::new("ibtool")
-                .arg("--compile")
-                .arg(nib_path)
-                .arg(img.path())
-                .output()
-                // .unwrap();
-                .map_err(|_| "Failed to run compile xibs.".to_string());
-        }
+        debug!(
+            "Compile xib from {:?} to {:?}",
+            entry.path().display(),
+            nib_path.display()
+        );
+        let _compile_xibs = Command::new("ibtool")
+            .arg("--compile")
+            .arg(nib_path)
+            .arg(entry.path())
+            .output()
+            // .unwrap();
+            .map_err(|_| "Failed to run compile xibs.".to_string());
     }
 }
 
@@ -179,7 +185,7 @@ pub fn codesign(package: &Path) {
 ///
 /// # Example
 ///
-/// ```
+/// ```no run
 /// use toolbelt::get_sdk_path;
 /// let sdk_path = get_sdk_path(env!("THE_SDK"));
 /// ```
@@ -187,7 +193,7 @@ pub fn get_sdk_path(sdk_name: &str) -> PathBuf {
     let sdk_path: PathBuf = sdk_name
         .to_string()
         .parse()
-        .expect(format!("{} env variable configuration error.", sdk_name).as_str());
+        .unwrap_or_else(|_| panic!("{} env variable configuration error.", sdk_name));
 
     if !sdk_path.exists() {
         eprintln!(
@@ -217,7 +223,7 @@ pub enum IncludeDirFormat {
 ///
 /// # Example
 ///
-/// ```
+/// ```no run
 /// use toolbelt::{get_sdk_path, get_sdk_include_dirs, IncludeDirFormat};
 ///
 /// let sdk_path = get_sdk_path(env!("THE_SDK")).to_str().unwrap();
