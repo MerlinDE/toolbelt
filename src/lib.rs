@@ -79,12 +79,9 @@ fn test_copy_dir_with_pattern() {
     }
 
     // check the copy worked
-    assert_eq!(Path::new("target/dest_files/file1.txt").exists(), true);
-    assert_eq!(Path::new("target/dest_files/file2.csv").exists(), true);
-    assert_eq!(
-        Path::new("target/dest_files/more_files/file3.md").exists(),
-        true
-    );
+    assert!(Path::new("target/dest_files/file1.txt").exists());
+    assert!(Path::new("target/dest_files/file2.csv").exists());
+    assert!(Path::new("target/dest_files/more_files/file3.md").exists());
 
     // clean up
     fs::remove_dir_all(destination_path);
